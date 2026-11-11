@@ -25,6 +25,7 @@ const mongoClient = await connectToMongoDB()
 const db = mongoClient.db("hireloop-db")
 const users = db.collection("user")
 const jobs = db.collection('jobs')
+const applications = db.collection("applications")
 
 app.get('/', (req, res) => {
     res.send({ Msg: "API is working" })
@@ -102,6 +103,18 @@ app.delete('/jobs/:id', async (req, res) => {
     const result = await jobs.deleteOne(query)
     res.send(result)
 })
+
+// applications
+app.post('/applications', async (req, res) => {
+    const application = {
+        ...req.body,
+        status: "Applied",
+        postedAt: new Date().toISOString().slice(0, 10),
+    }
+    const result = await applications.insertOne(application)
+    res.send(result)
+})
+
 app.listen(PORT, () => {
     console.log(`Server is running on PORT${PORT}`);
 })
