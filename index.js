@@ -69,7 +69,6 @@ app.get('/jobs', async (req, res) => {
         query.$or = [
             { title: { $regex: req.query.search, $options: "i" } },
             { company: { $regex: req.query.search, $options: "i" } },
-            // { category: { $regex: req.query.search, $options: "i" } },
             { requirements: { $regex: req.query.search, $options: "i" } }
         ];
     }
