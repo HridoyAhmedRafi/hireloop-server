@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
 import { MongoClient, ObjectId } from 'mongodb';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -26,14 +29,23 @@ const db = mongoClient.db("hireloop-db")
 const users = db.collection("user")
 const jobs = db.collection('jobs')
 const applications = db.collection("applications")
+const payments = db.collection("payments")
 
 app.get('/', (req, res) => {
     res.send({ Msg: "API is working" })
 })
 
+// users apis
 app.get("/users", async (req, res) => {
     const cursor = users.find({});
     const result = await cursor.toArray()
+    res.send(result)
+})
+
+app.get('/users/:id/premium', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const result = await users.findOne(query, { projection: { premium: 1 } })
     res.send(result)
 })
 
@@ -134,6 +146,53 @@ app.get('/applications/count', async (req, res) => {
     res.send({ count: result })
 })
 
+// payments apis
+app.post('/payments/checkout-varify', async (req, res) => {
+    const { sessionId } = req.body
+    if (!sessionId) {
+        return res.send({ success: false, message: "Session ID required" })
+    }
+    const { status,
+        customer_email,
+        metadata,
+        payment_intent,
+        payment_status, } = await stripe.checkout.sessions.retrieve(sessionId)
+
+    if (status === "complete" && payment_status === "paid") {
+        const sessionQuery = { sessionId }
+        const existingPayment = await payments.findOne(sessionQuery)
+        if (existingPayment) {
+            return res.send({ success: false, message: 'Payment already varified' })
+        }
+
+        const payment = {
+            sessionId,
+            status,
+            customer_email,
+            userId: metadata.userId,
+            paymentDate: new Date(),
+            payment_intent,
+            payment_status
+        }
+        const result = await payments.insertOne(payment)
+
+        const query = { _id: new ObjectId(metadata.userId) }
+        const updatedDoc = {
+            $set: {
+                premium: true
+            }
+        }
+        const updatedResult = await users.updateOne(query, updatedDoc)
+        res.send({ success: true, result, updatedResult })
+        return
+    }
+    res.send({ success: false, message: 'Payment varificaton failed' })
+
+    // is used new session
+    // check is the session id for currently logged in user
+    // insert sessionId into payments collection
+    // update user information as premium user 
+})
 
 app.listen(PORT, () => {
     console.log(`Server is running on PORT${PORT}`);
