@@ -77,6 +77,10 @@ app.get('/jobs', async (req, res) => {
         query.category = req.query.category
     }
 
+    if (req.query.recruiterId) {
+        query.recruiterId = req.query.recruiterId
+    }
+
     if (req.query.search) {
         query.$or = [
             { title: { $regex: req.query.search, $options: "i" } },
@@ -132,6 +136,8 @@ app.get('/applications', async (req, res) => {
     if (req.query.applicantId) {
         query.userId = req.query.applicantId;
     }
+
+    
     const cursor = applications.find(query)
     const result = await cursor.toArray()
     res.send(result)
