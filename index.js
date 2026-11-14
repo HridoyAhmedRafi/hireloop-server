@@ -49,6 +49,19 @@ app.get('/users/:id/premium', async (req, res) => {
     res.send(result)
 })
 
+app.patch('/users/:id/role', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const updatedDoc = {
+        $set: {
+            role: req.body.role
+        }
+    }
+    const result = await users.updateOne(query, updatedDoc)
+    res.send(result)
+})
+
+
 // job related api
 // create
 app.post('/add-job', async (req, res) => {
@@ -122,12 +135,15 @@ app.delete('/jobs/:id', async (req, res) => {
 // applications
 // post
 app.post('/applications', async (req, res) => {
+    console.log(req.body);
     const application = {
+
         ...req.body,
         status: "Applied",
         postedAt: new Date().toISOString().slice(0, 10),
     }
     const result = await applications.insertOne(application)
+    console.log(result);
     res.send(result)
 })
 // get
@@ -136,8 +152,9 @@ app.get('/applications', async (req, res) => {
     if (req.query.applicantId) {
         query.userId = req.query.applicantId;
     }
-
-    
+    if (req.query.jobId) {
+        query.jobId = req.query.jobId
+    }
     const cursor = applications.find(query)
     const result = await cursor.toArray()
     res.send(result)
@@ -150,6 +167,17 @@ app.get('/applications/count', async (req, res) => {
     }
     const result = await applications.countDocuments(query)
     res.send({ count: result })
+})
+app.patch('/applications/:id', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const updatedDoc = {
+        $set: {
+            status: req.body.status
+        }
+    }
+    const result = await applications.updateOne(query, updatedDoc)
+    res.send(result)
 })
 
 // payments apis
