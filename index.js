@@ -13,7 +13,6 @@ const PORT = process.env.PORT || 5000
 app.use(express.json())
 app.use(cors())
 
-
 const client = new MongoClient(process.env.MONGODB_URI);
 export async function connectToMongoDB() {
     try {
@@ -27,9 +26,46 @@ export async function connectToMongoDB() {
 const mongoClient = await connectToMongoDB()
 const db = mongoClient.db("hireloop-db")
 const users = db.collection("user")
+const sessions = db.collection("session")
 const jobs = db.collection('jobs')
 const applications = db.collection("applications")
 const payments = db.collection("payments")
+
+//varification middlware
+const varifyToken = async (req, res, next) => {
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+        res.status(401).send({
+            message: "Unauthorized"
+        });
+        return;
+    }
+
+    const token = authHeader.split(" ")[1]
+    if (!token) {
+        res.status(401).send({ message: 'Unauthorized' })
+        return
+    }
+
+    const query = { token }
+    const session = await sessions.findOne(query)
+    if (!session) {
+        res.status(401).send({ message: 'Unauthorized' })
+        return
+    }
+
+    const userId = session.userId
+    const userQuery = { _id: new ObjectId(userId) }
+    const user = await users.findOne(userQuery)
+    if (!user) {
+        res.status(401).send({ message: 'Unauthorized' })
+        return
+    }
+
+    req.user = user
+    next()
+}
+
 
 app.get('/', (req, res) => {
     res.send({ Msg: "API is working" })
@@ -135,7 +171,7 @@ app.delete('/jobs/:id', async (req, res) => {
 // applications
 // post
 app.post('/applications', async (req, res) => {
-    console.log(req.body);
+
     const application = {
 
         ...req.body,
@@ -147,12 +183,19 @@ app.post('/applications', async (req, res) => {
     res.send(result)
 })
 // get
-app.get('/applications', async (req, res) => {
+app.get('/applications', varifyToken, async (req, res) => {
+
     const query = {}
     if (req.query.applicantId) {
         query.userId = req.query.applicantId;
     }
     if (req.query.jobId) {
+        const jobQuery = { _id: new ObjectId(req.query.jobId) }
+        const job = await jobs.findOne(jobQuery)
+        if (job.recruiterId !== req.user._id.toString() && req.user.role !== 'admin') {
+            res.status(403).send({ message: "Forbidden" })
+            return
+        }
         query.jobId = req.query.jobId
     }
     const cursor = applications.find(query)
