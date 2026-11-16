@@ -66,6 +66,31 @@ const varifyToken = async (req, res, next) => {
     next()
 }
 
+// seeker varify middleware
+const verifySeeker = async (req, res, next) => {
+    if (req.user.role !== 'seeker') {
+        res.status(401).send({ message: "Forbidden" })
+        return
+    }
+    next()
+}
+// recruiter verify middleware
+const varifyRecruiter = async (req, res, next) => {
+    if (req.user.role !== 'recruiter') {
+        res.status(401).send({ message: "Forbidden" })
+        return
+    }
+    next()
+}
+// admin varify middleware
+const varifyAdmin = async (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        res.status(401).send({ message: "Forbidden" })
+        return
+    }
+    next()
+}
+
 
 app.get('/', (req, res) => {
     res.send({ Msg: "API is working" })
@@ -85,7 +110,7 @@ app.get('/users/:id/premium', async (req, res) => {
     res.send(result)
 })
 
-app.patch('/users/:id/role', async (req, res) => {
+app.patch('/users/:id/role', varifyToken, varifyAdmin, async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
     const updatedDoc = {
@@ -100,7 +125,7 @@ app.patch('/users/:id/role', async (req, res) => {
 
 // job related api
 // create
-app.post('/add-job', async (req, res) => {
+app.post('/add-job', varifyToken, varifyRecruiter, async (req, res) => {
     const job = {
         ...req.body,
         status: "Active",
@@ -170,7 +195,7 @@ app.delete('/jobs/:id', async (req, res) => {
 
 // applications
 // post
-app.post('/applications', async (req, res) => {
+app.post('/applications', varifyToken, verifySeeker, async (req, res) => {
 
     const application = {
 
@@ -179,7 +204,6 @@ app.post('/applications', async (req, res) => {
         postedAt: new Date().toISOString().slice(0, 10),
     }
     const result = await applications.insertOne(application)
-    console.log(result);
     res.send(result)
 })
 // get
