@@ -298,3 +298,5 @@ app.post('/payments/checkout-varify', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on PORT${PORT}`);
 })
+
+export default app
